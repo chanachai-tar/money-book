@@ -36,6 +36,10 @@
   --in:#5cc983; --out:#f08a6c; --warn:#e3a93c; --warn-soft:#3a2e14; --bad-soft:#3d2219; color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
+.rec{display:flex;flex-direction:column;gap:8px;background:var(--sunk);border-radius:10px;padding:10px 12px}
+.chk{display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:14px}
+.chk input{width:20px;height:20px;accent-color:var(--accent);flex:none;margin-top:2px}
+.chk.sub{padding-left:30px}
 .gear{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer;display:grid;place-items:center;flex:none}
 .gear svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.7}
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.55;margin:0}
@@ -347,8 +351,8 @@ const Store={mode:"local",listeners:{},
           this.db.assets.onSnapshot(s=>{ASSETS=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>note("โหลดทรัพย์สินไม่ได้ ("+e.code+")"));
           this.db.debts.onSnapshot(s=>{DEBTS=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>note("โหลดหนี้ไม่ได้ ("+e.code+")"));
           this.mode="db";
-          this.db.tx.onSnapshot(s=>{TX=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>note("โหลดรายการไม่ได้ ("+e.code+")"));
-          this.db.bills.onSnapshot(s=>{BILLS=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>note("โหลดบิลไม่ได้ ("+e.code+")"));
+          this.db.tx.onSnapshot(s=>{TX=s.docs.map(d=>({id:d.id,...d.data()}));if(!s.metadata.fromCache&&!loaded.tx){loaded.tx=true;runAuto()}render()},e=>note("โหลดรายการไม่ได้ ("+e.code+")"));
+          this.db.bills.onSnapshot(s=>{BILLS=s.docs.map(d=>({id:d.id,...d.data()}));if(!s.metadata.fromCache&&!loaded.bills){loaded.bills=true;runAuto()}render()},e=>note("โหลดบิลไม่ได้ ("+e.code+")"));
           this.db.tax.onSnapshot(s=>{TAXS=s.exists?{income:"",items:{},...s.data()}:{income:"",items:{}};renderTax(true)},()=>{});
           this.db.set=db.doc("data/users/"+uid+"/settings");
           this.db.set.onSnapshot(s=>{SET=s.exists?{budgets:{},...s.data()}:{budgets:{}};render()},()=>{});
@@ -360,7 +364,7 @@ const Store={mode:"local",listeners:{},
     this.mode="local";
     try{const j=JSON.parse(localStorage.getItem("moneybook")||"{}");TX=j.tx||[];BILLS=j.bills||[];ASSETS=j.assets||[];DEBTS=j.debts||[];TAXS=j.tax||{income:"",items:{}};SET=j.set||{budgets:{}};}catch(e){}
     $("storeNote").textContent="เก็บข้อมูลไว้ในเบราว์เซอร์นี้";
-    render();renderTax(true);
+    loaded.tx=loaded.bills=true;render();renderTax(true);runAuto();
   },
   saveLocal(){try{localStorage.setItem("moneybook",JSON.stringify({tx:TX,bills:BILLS,assets:ASSETS,debts:DEBTS,tax:TAXS,set:SET}))}catch(e){}},
   async saveSet(){if(this.mode==="db"){try{await this.db.set.set(JSON.parse(JSON.stringify(SET)))}catch(e){fail(e)}}else{this.saveLocal();render()}},
@@ -431,7 +435,7 @@ function render(){
   $("billAlert").innerHTML+=over.length?`<div class="alert ${over.some(x=>x[1]>x[2])?"bad":""}" style="margin-top:${due.length?"10px":"0"}"><div><b>งบใกล้หมด</b><div class="small">${over.map(x=>`${esc(x[0])} ใช้ไป ${Math.round(x[1]/x[2]*100)}%`).join(" · ")}</div></div></div>`:"";
   renderTrend();
 
-  const row=(t,del)=>`<div class="item"><div class="name">${esc(t.note||t.cat)}</div><div class="amt ${t.type}">${t.type==="in"?"+":"−"}${baht(t.amount).slice(1)}</div><div class="meta"><span class="chip">${esc(t.cat)}</span>${t.src==="slip"?`<span class="chip ok">จากสลิป</span>`:""}${t.tax?`<span class="chip ok">ลดหย่อน: ${esc(taxName(t.tax))}</span>`:""}<span>${fmtDate(t.date)}${del&&txScope()==="all"?" "+(+t.date.slice(0,4)+543):""}</span><button class="linkbtn" data-edittx="${t.id}">แก้ไข</button>${del?`<span class="confirm" data-wrap="${t.id}"><button class="linkbtn" data-del="${t.id}">ลบ</button></span>`:""}</div></div>`;
+  const row=(t,del)=>`<div class="item"><div class="name">${esc(t.note||t.cat)}</div><div class="amt ${t.type}">${t.type==="in"?"+":"−"}${baht(t.amount).slice(1)}</div><div class="meta"><span class="chip">${esc(t.cat)}</span>${t.src==="slip"?`<span class="chip ok">จากสลิป</span>`:t.src==="auto"?`<span class="chip ok">อัตโนมัติ</span>`:t.bill?`<span class="chip">ประจำเดือน</span>`:""}${t.tax?`<span class="chip ok">ลดหย่อน: ${esc(taxName(t.tax))}</span>`:""}<span>${fmtDate(t.date)}${del&&txScope()==="all"?" "+(+t.date.slice(0,4)+543):""}</span><button class="linkbtn" data-edittx="${t.id}">แก้ไข</button>${del?`<span class="confirm" data-wrap="${t.id}"><button class="linkbtn" data-del="${t.id}">ลบ</button></span>`:""}</div></div>`;
   $("recent").innerHTML=mt.length?mt.slice(0,5).map(t=>row(t,false)).join(""):`<div class="empty">ยังไม่มีรายการในเดือนนี้</div>`;
   // transactions tab with search/filter
   const q=$("txQ").value.trim().toLowerCase(),fc=$("txCat").value;
@@ -446,7 +450,7 @@ function render(){
 
   // bills for viewed month
   const bl=BILLS.map(b=>({b,s:billStatus(b,key)})).sort((a,b)=>a.s.rank-b.s.rank||a.b.day-b.b.day);
-  $("billList").innerHTML=bl.length?bl.map(({b,s})=>`<div class="item"><div class="name"><b>${esc(b.name)}</b></div><div class="amt">${baht(b.amount)}</div><div class="meta"><span class="chip ${s.c}">${s.t}</span><span>ทุกวันที่ ${b.day}</span>${s.rank<3?`<button class="btn sm primary" data-pay="${b.id}">จ่ายแล้ว</button>`:`<button class="linkbtn" data-unpay="${b.id}">ยกเลิก</button>`}<button class="linkbtn" data-editbill="${b.id}">แก้ไข</button></div></div>`).join(""):`<div class="empty">ยังไม่มีบิล เพิ่มค่าไฟ ค่าน้ำ ค่าเน็ต ค่าผ่อน เพื่อให้ระบบเตือนก่อนครบกำหนด</div>`;
+  $("billList").innerHTML=bl.length?bl.map(({b,s})=>`<div class="item"><div class="name"><b>${esc(b.name)}</b></div><div class="amt">${baht(b.amount)}</div><div class="meta"><span class="chip ${s.c}">${s.t}</span>${b.auto?`<span class="chip ok">บันทึกอัตโนมัติ</span>`:""}<span>ทุกวันที่ ${b.day}</span>${s.rank<3?`<button class="btn sm primary" data-pay="${b.id}">จ่ายแล้ว</button>`:`<button class="linkbtn" data-unpay="${b.id}">ยกเลิก</button>`}<button class="linkbtn" data-editbill="${b.id}">แก้ไข</button></div></div>`).join(""):`<div class="empty">ยังไม่มีบิล เพิ่มค่าไฟ ค่าน้ำ ค่าเน็ต ค่าผ่อน เพื่อให้ระบบเตือนก่อนครบกำหนด</div>`;
 }
 const txScope=()=>$("txScope").value;
 /* ---------- trend chart: 6 months ending at viewed month ---------- */
@@ -641,7 +645,7 @@ function taxSelect(id,v){return`<select id="${id}"><option value="">ไม่ใ
 function openTx(id){
   const ex=id?TX.find(x=>x.id===id):null;
   let type=ex?ex.type:"out";
-  const keep={amt:ex?ex.amount:"",cat:ex?ex.cat:"",date:ex?ex.date:todayStr,note:ex?ex.note||"":"",tax:ex?ex.tax||"":""};
+  const keep={amt:ex?ex.amount:"",cat:ex?ex.cat:"",date:ex?ex.date:todayStr,note:ex?ex.note||"":"",tax:ex?ex.tax||"":"",rec:false,auto:true};
   const draw=()=>{
     const cats=type==="out"?OUT_CATS:IN_CATS;
     $("sheetRoot").innerHTML=`<div class="sheet-bg" id="sbg"><div class="sheet" role="dialog" aria-label="${ex?"แก้ไขรายการ":"เพิ่มรายการ"}"><div class="hd"><h2>${ex?"แก้ไขรายการ":"เพิ่มรายการ"}</h2><button class="linkbtn" id="sx">ปิด</button></div>
@@ -652,13 +656,21 @@ function openTx(id){
     <div class="field"><label for="f-date">วันที่</label><input id="f-date" type="date" value="${keep.date}"></div></div>
     <div class="field"><label for="f-note">บันทึก</label><input id="f-note" value="${esc(keep.note)}" placeholder="${type==="out"?"เช่น ข้าวเที่ยง":"เช่น เงินเดือน ต.ค."}"></div>
     ${type==="out"?`<div class="field"><label for="f-tax">ใช้ลดหย่อนภาษี (ยอดจะไปรวมในแท็บภาษี)</label>${taxSelect("f-tax",keep.tax)}</div>`:""}
+    ${type==="out"&&!ex?`<div class="rec"><label class="chk"><input type="checkbox" id="f-rec" ${keep.rec?"checked":""}><span><b>จ่ายทุกเดือน ยอดเท่ากัน</b><br><span class="small muted">เช่น ค่าเช่า ค่าเน็ต Netflix เบี้ยประกันรายเดือน จะสร้างเป็นรายการประจำในแท็บบิล ครบกำหนดทุกวันที่เดียวกับวันที่ที่เลือก</span></span></label>
+      <label class="chk sub" id="f-auto-wrap" ${keep.rec?"":"hidden"}><input type="checkbox" id="f-auto" ${keep.auto!==false?"checked":""}><span>บันทึกเป็นรายจ่ายให้อัตโนมัติเมื่อถึงวัน<br><span class="small muted">ไม่ต้องกด “จ่ายแล้ว” เอง เหมาะกับรายการที่ตัดบัตรหรือหักบัญชี</span></span></label></div>`:""}
     <button class="btn primary" type="submit">${ex?"บันทึกการแก้ไข":"บันทึก"}</button></form></div></div>`;
     if($("toSlip"))$("toSlip").onclick=openSlip;
+    if($("f-rec"))$("f-rec").onchange=e=>{keep.rec=e.target.checked;$("f-auto-wrap").hidden=!e.target.checked};
+    if($("f-auto"))$("f-auto").onchange=e=>{keep.auto=e.target.checked};
     document.querySelectorAll("#txseg button").forEach(b=>b.onclick=()=>{keep.amt=$("f-amt").value;keep.date=$("f-date").value;keep.note=$("f-note").value;type=b.dataset.t;draw()});
     $("sx").onclick=closeSheet;$("sbg").onclick=e=>{if(e.target.id==="sbg")closeSheet()};
     $("f-cat").onchange=e=>{const tc={"ประกัน/ลงทุน":"","สุขภาพ":""};if($("f-tax")&&!$("f-tax").value&&e.target.value in tc)$("f-tax").focus()};
     $("txf").onsubmit=async e=>{e.preventDefault();const a=parseFloat($("f-amt").value.replace(/,/g,""));if(!(a>0)){$("f-amt").focus();return}
       const rec={...(ex||{}),type,amount:a,cat:$("f-cat").value,date:$("f-date").value||todayStr,note:$("f-note").value.trim(),tax:type==="out"&&$("f-tax")?$("f-tax").value:"",ts:ex?ex.ts:Date.now()};
+      if(!ex&&type==="out"&&$("f-rec")&&$("f-rec").checked){
+        const day=+rec.date.slice(8,10),mk=rec.date.slice(0,7),auto=$("f-auto").checked;
+        const bid=await Store.put("bills",{name:rec.note||rec.cat,amount:a,day,cat:rec.cat,tax:rec.tax,auto,fixed:true,paid:{[mk]:true}});
+        await Store.put("tx",{...rec,bill:bid});closeSheet();toast(auto?`บันทึกแล้ว · จะบันทึกให้เองทุกวันที่ ${day}`:`บันทึกแล้ว · เพิ่มในบิลประจำทุกวันที่ ${day}`);return}
       await Store.put("tx",rec);closeSheet();toast(ex?"แก้ไขแล้ว":"บันทึกแล้ว")};
   };draw();
 }
@@ -734,17 +746,37 @@ function drawReview(items){
 }
 
 function openBill(id){
-  const b=BILLS.find(x=>x.id===id)||{name:"",amount:"",day:"",paid:{}};
+  const b=BILLS.find(x=>x.id===id)||{name:"",amount:"",day:"",paid:{},cat:"บิล/สาธารณูปโภค",auto:false};
   $("sheetRoot").innerHTML=`<div class="sheet-bg" id="sbg"><div class="sheet" role="dialog" aria-label="บิล"><div class="hd"><h2>${id?"แก้ไขบิล":"เพิ่มบิล"}</h2><button class="linkbtn" id="sx">ปิด</button></div>
   <form class="f" id="bf"><div class="field"><label for="b-name">ชื่อบิล</label><input id="b-name" required value="${esc(b.name)}" placeholder="เช่น ค่าไฟ, ผ่อนรถ"></div>
   <div class="grid2"><div class="field"><label for="b-amt">ยอดโดยประมาณ</label><input id="b-amt" class="num" inputmode="decimal" required value="${b.amount}" placeholder="0"></div>
   <div class="field"><label for="b-day">ครบกำหนดทุกวันที่</label><input id="b-day" type="number" min="1" max="31" required value="${b.day}" placeholder="1–31"></div></div>
+  <div class="grid2"><div class="field"><label for="b-cat">หมวด</label><select id="b-cat">${OUT_CATS.map(c=>`<option ${c===(b.cat||"บิล/สาธารณูปโภค")?"selected":""}>${c}</option>`).join("")}</select></div>
+  <div class="field"><label for="b-tax">ใช้ลดหย่อนภาษี</label>${taxSelect("b-tax",b.tax||"")}</div></div>
+  <label class="chk"><input type="checkbox" id="b-auto" ${b.auto?"checked":""}><span><b>ยอดเท่ากันทุกเดือน บันทึกให้อัตโนมัติ</b><br><span class="small muted">เมื่อถึงวันครบกำหนด ระบบจะบันทึกรายจ่ายให้เองตอนเปิดแอป ไม่ต้องกด “จ่ายแล้ว” ถ้ายอดเปลี่ยนทุกเดือน (เช่น ค่าไฟ) ไม่ต้องติ๊ก</span></span></label>
   <button class="btn primary" type="submit">บันทึก</button>${id?`<span class="confirm" id="bdelwrap"><button type="button" class="linkbtn" id="bdel">ลบบิลนี้</button></span>`:""}</form></div></div>`;
   $("b-name").focus();
   $("sx").onclick=closeSheet;$("sbg").onclick=e=>{if(e.target.id==="sbg")closeSheet()};
   if(id)$("bdel").onclick=()=>{$("bdelwrap").innerHTML=`<span class="small">ลบแน่ใจ?</span><button type="button" class="btn sm" id="bdy">ลบ</button><button type="button" class="linkbtn" id="bdn">ไม่</button>`;$("bdy").onclick=async()=>{await Store.del("bills",id);closeSheet();toast("ลบบิลแล้ว")};$("bdn").onclick=()=>openBill(id)};
   $("bf").onsubmit=async e=>{e.preventDefault();const amt=parseFloat($("b-amt").value.replace(/,/g,""));const day=Math.max(1,Math.min(31,parseInt($("b-day").value)||1));
-    await Store.put("bills",{id,name:$("b-name").value.trim(),amount:amt||0,day,paid:b.paid||{}});closeSheet();toast("บันทึกบิลแล้ว")};
+    await Store.put("bills",{...b,id,name:$("b-name").value.trim(),amount:amt||0,day,cat:$("b-cat").value,tax:$("b-tax").value,auto:$("b-auto").checked,paid:b.paid||{}});closeSheet();toast("บันทึกบิลแล้ว");runAuto()};
+}
+
+/* ---------- auto-record fixed monthly payments ---------- */
+let autoBusy=false,loaded={tx:false,bills:false};
+async function runAuto(){
+  if(autoBusy||!loaded.tx||!loaded.bills)return;autoBusy=true;let n=0;
+  try{
+    const mk=ym(now.getFullYear(),now.getMonth()),dim=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
+    for(const b of BILLS.filter(x=>x.auto&&!x.debt)){
+      const due=Math.min(+b.day||1,dim);
+      if(now.getDate()<due||(b.paid&&b.paid[mk]))continue;
+      if(TX.some(t=>t.bill===b.id&&(t.date||"").startsWith(mk)))continue; // already recorded on another device
+      await Store.put("bills",{...b,paid:{...(b.paid||{}),[mk]:true}});
+      await Store.put("tx",{type:"out",amount:+b.amount||0,cat:b.cat||"บิล/สาธารณูปโภค",tax:b.tax||"",date:`${mk}-${pad(due)}`,note:b.name,ts:Date.now(),bill:b.id,src:"auto"});n++;
+    }
+  }finally{autoBusy=false}
+  if(n)toast(`บันทึกรายการประจำให้อัตโนมัติ ${n} รายการ`);
 }
 
 /* ---------- events ---------- */
@@ -768,7 +800,7 @@ document.addEventListener("click",async e=>{
   if(t.dataset.pay){const b=BILLS.find(x=>x.id===t.dataset.pay);if(!b)return;const paid={...(b.paid||{}),[key]:true};
     await Store.put("bills",{...b,paid});
     const d=key===ym(now.getFullYear(),now.getMonth())?todayStr:`${key}-${pad(Math.min(b.day,28))}`;
-    await Store.put("tx",{type:"out",amount:+b.amount||0,cat:b.debt?"ผ่อนหนี้":"บิล/สาธารณูปโภค",date:d,note:b.name,ts:Date.now(),bill:b.id});
+    await Store.put("tx",{type:"out",amount:+b.amount||0,cat:b.debt?"ผ่อนหนี้":(b.cat||"บิล/สาธารณูปโภค"),tax:b.tax||"",date:d,note:b.name,ts:Date.now(),bill:b.id});
     const dt=b.debt&&DEBTS.find(x=>x.id===b.debt);
     if(dt){const bal=+dt.balance||0,int=bal*(+dt.rate||0)/100/12,pr=Math.min(bal,Math.max(0,(+b.amount||0)-int));
       await Store.put("debts",{...dt,balance:Math.round((bal-pr)*100)/100,paidLog:{...(dt.paidLog||{}),[key]:pr}});
