@@ -1,0 +1,17 @@
+{
+  "name": "สมุดเงินประจำบ้าน",
+  "short_name": "สมุดเงิน",
+  "description": "รายรับ–รายจ่าย งบ บิล หนี้ ทรัพย์สิน และลดหย่อนภาษี",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eef2f0",
+  "theme_color": "#0f6b5a",
+  "lang": "th",
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+    {"src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml"}
+  ]
+}
