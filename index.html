@@ -42,7 +42,8 @@
 .chk.sub{padding-left:30px}
 .gear{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer;display:grid;place-items:center;flex:none}
 .gear svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.7}
-body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.55;margin:0}
+html,body{overflow-x:hidden}
+body{background:var(--bg);color:var(--fg);-webkit-text-size-adjust:100%;font-family:var(--f-body);font-size:15px;line-height:1.55;margin:0}
 .wrap{max-width:640px;margin:0 auto;padding-inline:16px;padding-block:14px 110px;display:flex;flex-direction:column;gap:16px}
 h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;letter-spacing:.01em}
 h1{font-size:22px}
@@ -93,7 +94,7 @@ form.f{display:flex;flex-direction:column;gap:10px}
 .field{display:flex;flex-direction:column;gap:4px;min-width:0}
 .field label{font-size:13px;color:var(--muted)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-input,select{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 11px;width:100%;min-width:0}
+input,select,textarea{font:inherit;font-size:16px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 11px;width:100%;min-width:0}
 input.amount{font-family:var(--f-num);font-size:20px}
 nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
 nav.tabs button{border:0;background:none;padding:10px 4px 12px;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px}
@@ -101,7 +102,7 @@ nav.tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-
 nav.tabs button[aria-selected="true"]{color:var(--accent)}
 .fab{position:fixed;right:18px;bottom:calc(76px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-fg);font-size:30px;line-height:1;box-shadow:0 4px 14px rgba(0,0,0,.2);cursor:pointer;z-index:6}
 .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:10;display:flex;align-items:flex-end;justify-content:center}
-.sheet{background:var(--surface);width:100%;max-width:640px;border-radius:16px 16px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px;max-height:90%;overflow:auto}
+.sheet{background:var(--surface);width:100%;overflow-x:hidden;max-width:640px;border-radius:16px 16px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px;max-height:90%;overflow:auto}
 .sheet .hd{display:flex;justify-content:space-between;align-items:center}
 .tax-sum{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .stat{background:var(--sunk);border-radius:10px;padding:10px 12px}
@@ -128,14 +129,14 @@ details.tx .body{padding:0 14px 14px;display:flex;flex-direction:column;gap:8px;
 .rv .top input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent);flex:none}
 .rv .top .amt-in{font-family:var(--f-num);font-size:17px;flex:1}
 .rv .g3{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.rv input,.rv select{padding:7px 9px;font-size:14px}
+.rv input,.rv select{padding:7px 9px}
 .spin{width:18px;height:18px;border:2px solid var(--accent-soft);border-top-color:var(--accent);border-radius:50%;animation:sp 1s linear infinite;display:inline-block;vertical-align:middle}
 @keyframes sp{to{transform:rotate(360deg)}}
 .err{color:var(--out);font-size:14px}
 .fill.warn{background:var(--warn)} .fill.bad{background:var(--out)}
 .filters{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .filters input{grid-column:1/-1}
-.filters input,.filters select{padding:8px 10px;font-size:14px}
+.filters input,.filters select{padding:8px 10px}
 .legend{display:flex;gap:14px;color:var(--muted)}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .sw{width:10px;height:10px;border-radius:2px;display:inline-block}
