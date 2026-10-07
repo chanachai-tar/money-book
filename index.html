@@ -498,7 +498,7 @@ function openSettings(){
   sheet("ตั้งค่าและสำรองข้อมูล",`<div class="small muted">${esc($("storeNote").textContent)}</div>
   <div class="panel" style="padding:12px"><h3>สำรองข้อมูล</h3><div class="small muted">ดาวน์โหลดข้อมูลทั้งหมดเป็นไฟล์ .json เก็บไว้ หรือใช้ย้ายไปเครื่องอื่น ควรสำรองเดือนละครั้ง</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm primary" id="bkOut">ดาวน์โหลดไฟล์สำรอง</button><label class="btn sm" for="bkIn" style="cursor:pointer">กู้คืนจากไฟล์</label><input id="bkIn" type="file" accept=".json,application/json" hidden></div><div id="bkMsg" class="small"></div></div>
-  ${IN_CLAUDE?"":`<div class="panel" style="padding:12px"><h3>อ่านสลิปด้วย Claude</h3><div class="small muted">ใส่ Anthropic API key ของคุณ (สร้างได้ที่ console.anthropic.com) เพื่อเปิดปุ่มอ่านสลิป key เก็บในเบราว์เซอร์นี้เท่านั้น และคิดค่าใช้ตามจริงในบัญชี API ของคุณ</div>
+  ${IN_CLAUDE?"":`<div class="panel" style="padding:12px"><h3>การอ่านสลิป</h3><div class="small"><span class="chip ${key?"":"ok"}">${key?"ใช้ Claude API (มีค่าใช้จ่าย)":"โหมดฟรี อ่านในเครื่อง"}</span></div><div class="small muted">ปุ่มอ่านสลิปใช้ได้ฟรีอยู่แล้ว ระบบอ่านตัวอักษรในเครื่องคุณ รูปไม่ถูกส่งไปไหน ใช้ได้ดีกับสลิปโอนเงินจากแอปธนาคาร ใบเสร็จกระดาษอาจอ่านพลาดบ้าง<br><br><b>ไม่บังคับ:</b> ถ้าอยากให้แม่นขึ้น (เดาหมวดและอ่านใบเสร็จได้ดีกว่า) ใส่ Anthropic API key ได้ ค่าใช้จ่ายคิดตามจริงในบัญชี API ของคุณ key เก็บในเบราว์เซอร์นี้เท่านั้น</div>
   <div class="field"><label for="apiKey">API key</label><input id="apiKey" type="password" autocomplete="off" value="${esc(key)}" placeholder="sk-ant-..."></div><div style="display:flex;gap:8px"><button class="btn sm primary" id="keySave">บันทึก key</button>${key?`<button class="btn sm" id="keyDel">ลบ key</button>`:""}</div></div>`}`);
   $("bkOut").onclick=async()=>{try{await saveFile(`money-book-backup-${todayStr}.json`,JSON.stringify({app:"money-book",v:1,at:new Date().toISOString(),tx:TX,bills:BILLS,assets:ASSETS,debts:DEBTS,tax:TAXS,set:SET},null,1),"application/json");$("bkMsg").textContent="ดาวน์โหลดแล้ว"}catch(e){if(e&&e.code!=="declined")$("bkMsg").textContent="ดาวน์โหลดไม่สำเร็จ"}};
   $("bkIn").onchange=async e=>{const f=e.target.files[0];if(!f)return;let j;try{j=JSON.parse(await f.text())}catch(_){$("bkMsg").textContent="ไฟล์นี้ไม่ใช่ไฟล์สำรองของแอป";return}
@@ -508,10 +508,85 @@ function openSettings(){
     if(j.tax){TAXS=j.tax;Store.saveTax()} if(j.set){SET=j.set;await Store.saveSet()}
     render();renderTax(true);$("bkMsg").textContent=`กู้คืนแล้ว ${(j.tx||[]).length} รายการ (รายการที่มีอยู่แล้วจะถูกเขียนทับ ไม่ซ้ำ)`};
   if($("keySave"))$("keySave").onclick=()=>{const v=$("apiKey").value.trim();lsSet("mb_apikey",v);initSample();toast(v?"บันทึก key แล้ว ปุ่มอ่านสลิปพร้อมใช้":"ลบ key แล้ว");closeSheet()};
-  if($("keyDel"))$("keyDel").onclick=()=>{lsSet("mb_apikey","");SAMPLE=null;toast("ลบ key แล้ว");closeSheet()};
+  if($("keyDel"))$("keyDel").onclick=()=>{lsSet("mb_apikey","");initSample();toast("ลบ key แล้ว กลับไปใช้โหมดอ่านฟรี");closeSheet()};
 }
 function lsGet(k){try{return localStorage.getItem(k)||""}catch(e){return""}}
 function lsSet(k,v){try{v?localStorage.setItem(k,v):localStorage.removeItem(k)}catch(e){}}
+/* SLIP_PARSER_START */
+const TH_MON={"ม.ค":1,"มค":1,"ก.พ":2,"กพ":2,"มี.ค":3,"มีค":3,"เม.ย":4,"เมย":4,"พ.ค":5,"พค":5,"มิ.ย":6,"มิย":6,"ก.ค":7,"กค":7,"ส.ค":8,"สค":8,"ก.ย":9,"กย":9,"ต.ค":10,"ตค":10,"พ.ย":11,"พย":11,"ธ.ค":12,"ธค":12,"มกราคม":1,"กุมภาพันธ์":2,"มีนาคม":3,"เมษายน":4,"พฤษภาคม":5,"มิถุนายน":6,"กรกฎาคม":7,"สิงหาคม":8,"กันยายน":9,"ตุลาคม":10,"พฤศจิกายน":11,"ธันวาคม":12,"jan":1,"feb":2,"mar":3,"apr":4,"may":5,"jun":6,"jul":7,"aug":8,"sep":9,"oct":10,"nov":11,"dec":12};
+const SLIP_KW=[[/7-?eleven|เซเว่น|ซีพี ออลล์|cp all/i,"อาหาร"],[/grab|lineman|foodpanda|robinhood|ร้านอาหาร|ก๋วยเตี๋ยว|คาเฟ่|coffee|กาแฟ|อาหาร/i,"อาหาร"],[/การไฟฟ้า|การประปา|ais|true|dtac|3bb|nt |ค่าไฟ|ค่าน้ำ|internet|อินเทอร์เน็ต/i,"บิล/สาธารณูปโภค"],[/ปตท|ptt|bangchak|บางจาก|shell|เชลล์|caltex|bts|mrt|ทางด่วน|easy pass|m-flow/i,"เดินทาง"],[/โรงพยาบาล|hospital|คลินิก|clinic|ร้านยา|pharmacy/i,"สุขภาพ"],[/ประกัน|insurance|aia|เมืองไทยประกัน|กรุงเทพประกัน|allianz|fwd/i,"ประกัน/ลงทุน"],[/shopee|lazada|central|robinson|big ?c|lotus|โลตัส|makro|แม็คโคร|ikea|homepro/i,"ช้อปปิ้ง"],[/netflix|spotify|youtube|disney|major|sf cinema/i,"บันเทิง"]];
+function normDigits(s){return s.replace(/\u0E4D\u0E32/g,"\u0E33").replace(/[๐-๙]/g,d=>"๐๑๒๓๔๕๖๗๘๙".indexOf(d)).replace(/[Oo](?=[\d,.]*\d)/g,"0")}
+function parseSlipText(raw,today){
+  const text=normDigits(raw).replace(/\r/g,"");
+  const lines=text.split("\n").map(l=>l.trim()).filter(Boolean);
+  const money=s=>{const m=[...s.matchAll(/(\d{1,3}(?:[,\s]\d{3})+|\d+)[.,](\d{2})(?!\d)/g)].map(x=>parseFloat(x[1].replace(/[,\s]/g,"")+"."+x[2]));return m};
+  // amount: line with an amount keyword (or the next line); otherwise first non-zero money value not on a fee line
+  let amount=0;
+  for(let i=0;i<lines.length&&!amount;i++){
+    if(/จำนวน|ยอดเงิน|ยอดโอน|ยอดชำระ|amount|total|รวม/i.test(lines[i])&&!/ค่าธรรมเนียม|fee/i.test(lines[i])){
+      const v=[...money(lines[i]),...(lines[i+1]?money(lines[i+1]):[])].find(x=>x>0);if(v)amount=v}
+  }
+  if(!amount){for(const l of lines){if(/ค่าธรรมเนียม|fee|คงเหลือ|balance/i.test(l))continue;const v=money(l).find(x=>x>0);if(v){amount=v;break}}}
+  // date
+  let date="";
+  const monRe=Object.keys(TH_MON).sort((a,b)=>b.length-a.length).map(k=>k.replace(/\./g,"\\.?")).join("|");
+  const m1=text.match(new RegExp("(\\d{1,2})\\s*("+monRe+")\\.?\\s*(\\d{2,4})","i"));
+  const m2=text.match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
+  let d,mo,y;
+  if(m1){d=+m1[1];const key=m1[2].toLowerCase().replace(/\./g,"");mo=TH_MON[Object.keys(TH_MON).find(k=>k.replace(/\./g,"")===key)];y=+m1[3]}
+  else if(m2){d=+m2[1];mo=+m2[2];y=+m2[3]}
+  if(d&&mo&&y&&d<=31&&mo<=12){if(y<100)y+=y>=60?2500:2000; if(y>2400)y-=543; date=`${y}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`}
+  if(!date||date>today)date=today;
+  // reference
+  const rm=text.match(/(?:รหัสอ้างอิง|เลขที่รายการ|หมายเลขอ้างอิง|เลขอ้างอิง|ref(?:erence)?\.?\s*(?:no\.?)?)\s*[:：]?\s*([A-Za-z0-9]{6,})/i);
+  const ref=rm?rm[1]:"";
+  // counterparty: line after a "to" label, else the last person/business name line
+  let note="";
+  const LBL=/^(ไปยัง|ถึง|ผู้รับ|โอนให้|ชำระให้|to\s|to:)/i;
+  const toIdx=lines.findIndex(l=>LBL.test(l));
+  const nameRe=/(นาย|นางสาว|นาง|น\.ส\.|ด\.ช\.|ด\.ญ\.|บจก|บริษัท|หจก|ร้าน|mr\.?|mrs\.?|ms\.?|co\.,?|ltd)/i;
+  if(toIdx>=0){const rest=lines[toIdx].replace(LBL,"").replace(/^\s*[:：]?\s*/,"").trim();note=rest&&rest.length>2?rest:(lines[toIdx+1]||"")}
+  if(!note){const names=lines.filter(l=>nameRe.test(l)&&!/\d{4,}/.test(l));note=names.length>1?names[names.length-1]:(names[0]||"")}
+  note=note.replace(/^(จาก|from|ไปยัง|ถึง|ผู้รับ|to)\s*[:：]?\s*/i,"").replace(/x{2,}[\d-]*|\d{3}-\d-\d{3,}.*$/gi,"").replace(/\s{2,}/g," ").trim().slice(0,40);
+  let cat="อื่นๆ";for(const[re,c]of SLIP_KW)if(re.test(text)){cat=c;break}
+  const isIn=/รับเงิน|เงินเข้า|received|ได้รับเงิน/i.test(text)&&!/โอนเงินสำเร็จ|ชำระเงินสำเร็จ|จ่ายบิลสำเร็จ/i.test(text);
+  return amount?{amount,date,type:isIn?"in":"out",cat:isIn?"อื่นๆ":cat,note,ref,tax:""}:null;
+}
+/* SLIP_PARSER_END */
+/* standalone, free: on-device OCR with Tesseract (Thai + English), then parse the slip text */
+const TESS_SRC="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
+let tessWorker=null,tessLoading=null;
+function loadTess(onStatus){
+  if(tessWorker)return Promise.resolve(tessWorker);
+  if(tessLoading)return tessLoading;
+  tessLoading=new Promise((ok,bad)=>{
+    const go=async()=>{try{onStatus&&onStatus("กำลังเตรียมตัวอ่านภาษาไทย (ครั้งแรกโหลดประมาณ 4 MB ครั้งต่อไปเร็วขึ้น)");
+      tessWorker=await Tesseract.createWorker(["tha","eng"],1,{logger:m=>{if(onStatus&&m.status==="recognizing text")onStatus("กำลังอ่านตัวอักษร "+Math.round(m.progress*100)+"%")}});ok(tessWorker)}catch(e){tessLoading=null;bad(e)}};
+    if(window.Tesseract)return go();
+    const sc=document.createElement("script");sc.src=TESS_SRC;sc.onload=go;sc.onerror=()=>{tessLoading=null;bad({code:"ocr_load"})};document.head.appendChild(sc);
+  });
+  return tessLoading;
+}
+async function prepForOcr(file){ // upscale small screenshots, grayscale + contrast for cleaner OCR
+  try{const bmp=await createImageBitmap(file);const k=bmp.width<900?2:bmp.width>2000?2000/bmp.width:1;
+    const c=document.createElement("canvas");c.width=Math.round(bmp.width*k);c.height=Math.round(bmp.height*k);const g=c.getContext("2d");
+    g.filter="grayscale(1) contrast(1.25)";g.drawImage(bmp,0,0,c.width,c.height);return c}catch(e){return file}}
+function ocrSample(){
+  const f=async()=>{throw{code:"invalid_request"}};
+  f.free=true;
+  f.json=async(prompt,opts={})=>{
+    const st=t=>{const el=document.querySelector("#slipStatus .small");if(el)el.textContent=t};
+    const w=await loadTess(st);const out=[];const files=Array.from(opts.images||[]);
+    for(let i=0;i<files.length;i++){
+      if(opts.signal&&opts.signal.aborted)throw{code:"cancelled"};
+      st(`กำลังอ่านสลิป ${i+1}/${files.length}`);
+      const {data:{text}}=await w.recognize(await prepForOcr(files[i]));
+      const r=parseSlipText(text,todayStr);if(r)out.push(r);
+    }
+    return out;
+  };
+  return f;
+}
 /* standalone: call the Anthropic API directly with the person's own key */
 async function shrink(file){try{const bmp=await createImageBitmap(file);const s=Math.min(1,1568/Math.max(bmp.width,bmp.height));const c=document.createElement("canvas");c.width=Math.round(bmp.width*s);c.height=Math.round(bmp.height*s);c.getContext("2d").drawImage(bmp,0,0,c.width,c.height);return c.toDataURL("image/jpeg",.85).split(",")[1]}catch(e){return null}}
 function apiSample(key){
@@ -649,7 +724,7 @@ function openTx(id){
   const draw=()=>{
     const cats=type==="out"?OUT_CATS:IN_CATS;
     $("sheetRoot").innerHTML=`<div class="sheet-bg" id="sbg"><div class="sheet" role="dialog" aria-label="${ex?"แก้ไขรายการ":"เพิ่มรายการ"}"><div class="hd"><h2>${ex?"แก้ไขรายการ":"เพิ่มรายการ"}</h2><button class="linkbtn" id="sx">ปิด</button></div>
-    ${SAMPLE&&!ex?`<button type="button" class="slipbtn" id="toSlip"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>อัปโหลดสลิป ให้อ่านแล้วบันทึกเอง</button>`:""}
+    ${SAMPLE&&!ex?`<button type="button" class="slipbtn" id="toSlip"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>อัปโหลดสลิป ให้อ่านแล้วบันทึกเอง${SAMPLE&&SAMPLE.free?" (ฟรี)":""}</button>`:""}
     <div class="seg" id="txseg"><button type="button" data-t="out" aria-pressed="${type==="out"}">รายจ่าย</button><button type="button" data-t="in" aria-pressed="${type==="in"}">รายรับ</button></div>
     <form class="f" id="txf"><div class="field"><label for="f-amt">จำนวนเงิน (บาท)</label><input id="f-amt" class="amount" inputmode="decimal" required placeholder="0" value="${keep.amt}"></div>
     <div class="grid2"><div class="field"><label for="f-cat">หมวด</label><select id="f-cat">${cats.map(c=>`<option ${c===keep.cat?"selected":""}>${c}</option>`).join("")}</select></div>
@@ -677,9 +752,9 @@ function openTx(id){
 /* ---------- slip reading (Claude reads the image) ---------- */
 let SAMPLE=null,IMGCAP=null,slipCtl=null;
 async function initSample(){try{
-  if(!IN_CLAUDE){const k=lsGet("mb_apikey");SAMPLE=k?apiSample(k):null;IMGCAP=k?{maxCount:10,mediaTypes:["image/jpeg","image/png","image/webp","image/heic"]}:null;return}
+  if(!IN_CLAUDE){const k=lsGet("mb_apikey");SAMPLE=k?apiSample(k):ocrSample();IMGCAP={maxCount:10,mediaTypes:["image/jpeg","image/png","image/webp"]};return}
   const s=await claude.use("sample");if(!s)return;const l=await s.limits().catch(()=>null);if(l&&l.images){SAMPLE=s;IMGCAP=l.images}}catch(e){}}
-const SLIP_ERR={bad_key:"API key ไม่ถูกต้อง ตรวจที่ปุ่มตั้งค่า (รูปเฟือง)",upstream_error:"เชื่อมต่อไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองใหม่",not_granted:"ต้องกดอนุญาตให้หน้านี้ใช้ Claude ก่อน จึงจะอ่านสลิปได้",sampling_disabled:"บัญชีนี้ใช้การอ่านสลิปไม่ได้",image_rejected:"ไฟล์นี้อ่านไม่ได้ ลองใช้รูป JPG หรือ PNG ที่ไม่ใหญ่เกินไป",rate_limited:"ใช้งานถี่เกินไป รอสักครู่แล้วลองใหม่",invalid_json:"อ่านผลไม่สำเร็จ ลองอีกครั้ง",refused:"อ่านรูปนี้ไม่ได้ ลองรูปอื่น",empty_completion:"ไม่พบข้อมูลในรูป",session_expired:"กรุณาเข้าสู่ระบบใหม่"};
+const SLIP_ERR={ocr_load:"โหลดตัวอ่านสลิปไม่สำเร็จ ครั้งแรกต้องต่ออินเทอร์เน็ต ลองใหม่อีกครั้ง",bad_key:"API key ไม่ถูกต้อง ตรวจที่ปุ่มตั้งค่า (รูปเฟือง)",upstream_error:"เชื่อมต่อไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองใหม่",not_granted:"ต้องกดอนุญาตให้หน้านี้ใช้ Claude ก่อน จึงจะอ่านสลิปได้",sampling_disabled:"บัญชีนี้ใช้การอ่านสลิปไม่ได้",image_rejected:"ไฟล์นี้อ่านไม่ได้ ลองใช้รูป JPG หรือ PNG ที่ไม่ใหญ่เกินไป",rate_limited:"ใช้งานถี่เกินไป รอสักครู่แล้วลองใหม่",invalid_json:"อ่านผลไม่สำเร็จ ลองอีกครั้ง",refused:"อ่านรูปนี้ไม่ได้ ลองรูปอื่น",empty_completion:"ไม่พบข้อมูลในรูป",session_expired:"กรุณาเข้าสู่ระบบใหม่"};
 function openSlip(){
   const max=IMGCAP?IMGCAP.maxCount:5;
   $("sheetRoot").innerHTML=`<div class="sheet-bg" id="sbg"><div class="sheet" role="dialog" aria-label="อ่านสลิป"><div class="hd"><h2>อ่านจากสลิป</h2><button class="linkbtn" id="sx">ปิด</button></div>
@@ -714,7 +789,7 @@ async function readSlips(files){
       const tax=type==="out"&&TAX_LINK.some(l=>l[0]===x.tax)?x.tax:"";
       return{type,amount,date,cat:cats.includes(x.cat)?x.cat:"อื่นๆ",note,ref,tax,on:!dup,dup};
     });
-    st.innerHTML=items.length?`<div class="small muted">ตรวจความถูกต้องก่อนบันทึก แก้ได้ทุกช่อง</div>`:`<div class="err">ไม่พบรายการในรูปที่เลือก ลองรูปที่เห็นยอดเงินชัดเจน</div>`;
+    st.innerHTML=items.length?`<div class="small muted">ตรวจความถูกต้องก่อนบันทึก แก้ได้ทุกช่อง${SAMPLE&&SAMPLE.free?" · โหมดฟรีเดาหมวดจากชื่อร้านที่รู้จัก ถ้าไม่ตรงเลือกใหม่ได้":""}</div>`:`<div class="err">ไม่พบรายการในรูปที่เลือก ลองรูปที่เห็นยอดเงินชัดเจน</div>`;
     if(items.length)drawReview(items);
   }catch(e){
     if(e&&e.code==="cancelled"){st.innerHTML=`<div class="small muted">หยุดอ่านแล้ว</div>`;return}
